@@ -1,0 +1,78 @@
+#!/bin/bash
+#
+### BEGIN INIT INFO
+# Provides:          mysqlram
+# Required-Start:    $remote_fs $syslog $mysql
+# Required-Stop:     $remote_fs $syslog $mysql
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Move the mysql data to RAM disk or back to disk on shutdown
+# Description:       First copies all mysql data to a tmp folder then mounts a RAM disk over /var/lib/mysql
+#                    after that the data is restored. On stop the other way around
+### END INIT INFO
+#
+
+MYSQLDIR=/var/lib/mysql
+TMPDIR=/tmp/mysql
+DISKSIZE=50M
+
+function CleanCreateTmpDir {
+	echo Clear $TMPDIR
+	if [ -d $TMPDIR ]; then
+		rm -R $TMPDIR
+	fi
+	mkdir -p $TMPDIR
+}
+
+function BackupData {
+	CleanCreateTmpDir;
+	echo Copy data from $MYSQLDIR to $TMPDIR
+	cp -R $MYSQLDIR/* $TMPDIR
+}
+
+function RestoreData {
+	echo Copy data from $TMPDIR to $MYSQLDIR
+	cp -R $TMPDIR/* $MYSQLDIR
+	CleanCreateTmpDir;
+}
+
+function ToRAM {
+	BackupData;
+	echo Mount ram disk
+	mount -t tmpfs -o size=$DISKSIZE tmpfs $MYSQLDIR
+	RestoreData;
+	echo Set owner
+	chown -R mysql:mysql $MYSQLDIR
+}
+
+function ToDisk {
+	BackupData;
+	echo Unmount ram disk
+	umount $MYSQLDIR
+	RestoreData;
+}
+
+# Make sure only root can run our script
+if [ "$(id -u)" != "0" ]; then
+	echo "This script must be run as root" 1>&2
+	exit 1
+fi
+
+echo Stop mysql
+service mysql stop
+
+case $1 in
+	"start")
+		ToRAM;
+	;;
+	"stop")
+		ToDisk;
+	;;
+	*)
+		echo Usage: mysqlram \[toram \| todisk\]
+	;;
+esac
+
+echo Start mysql
+service mysql start
+

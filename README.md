@@ -8,7 +8,7 @@ This might be a nice option to fight sd card wear on raspberry-pi's and clones.
 
 ## Installation
 Copy mysqlram to /etc/init.d
-maybe it is necessary to chmod +x then file
+maybe it is necessary to chmod +x the file
 
 Now run
 ```
@@ -17,7 +17,7 @@ sudo update-rc.d mysqlram defaults
 
 ## Warning
 If a database is run on a RAM disk and the pc loses power all changes since the last boot will be lost.
-So use on you own risk.
+So use on your own risk.
 
 
 
